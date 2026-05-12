@@ -24,4 +24,4 @@ def log_error(message: str) -> None:
     :param message: сообщение об ошибке
     :return: None
     """
-    logger.info(f"ERROR: {message}")
+    logger.error(message)
