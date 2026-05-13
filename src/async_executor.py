@@ -9,11 +9,7 @@ from src.async_protocols import TaskHandler
 from src.async_queue import AsyncTaskQueue
 from src.logger import log_error, log_info
 from src.task import Task
-
-
-class NoHandlerError(RuntimeError):
-    pass
-
+from src.exceptions import NoHandlerError
 
 @dataclass(frozen=True, slots=True)
 class ExecutorStats:
@@ -24,23 +20,10 @@ class ExecutorStats:
 
 class AsyncTaskExecutor:
     """
-    Асинхронный исполнитель задач (ЛР4).
-
-    - Берёт задачи из `AsyncTaskQueue`
-    - Выбирает обработчик по `supports()`
-    - Обрабатывает задачи через `await handler.handle(task)`
-    - Управляет жизненным циклом воркеров через async context manager
-    - Логирует старт/ошибки централизованно
+    Асинхронный исполнитель задач
     """
 
-    def __init__(
-        self,
-        queue: AsyncTaskQueue,
-        handlers: Iterable[TaskHandler],
-        *,
-        workers: int = 2,
-        worker_name_prefix: str = "worker",
-    ) -> None:
+    def __init__(self, queue: AsyncTaskQueue, handlers: Iterable[TaskHandler], workers: int = 2, worker_name_prefix: str = "worker") -> None:
         self._queue = queue
         self._handlers = list(handlers)
         self._workers = max(1, int(workers))
@@ -48,7 +31,9 @@ class AsyncTaskExecutor:
 
         self._tasks: list[asyncio.Task[None]] = []
         self._stats = ExecutorStats()
+        # lock для синхронизации (чтобы правильно учитывалась статистика обработки задач)
         self._lock = asyncio.Lock()
+        # событие для остановки
         self._stopping = asyncio.Event()
 
     @property
@@ -56,8 +41,9 @@ class AsyncTaskExecutor:
         return self._stats
 
     async def __aenter__(self) -> AsyncTaskExecutor:
-        log_info(f"Executor start: workers={self._workers}")
+        log_info(f"Начало работы исплнителя: workers={self._workers}")
         self._stopping.clear()
+        # создаем задачи для каждого воркера
         self._tasks = [
             asyncio.create_task(self._worker_loop(i), name=f"{self._worker_name_prefix}-{i}")
             for i in range(self._workers)
@@ -83,20 +69,22 @@ class AsyncTaskExecutor:
         await self.stop()
 
     async def stop(self) -> None:
+        # если уже останавливаемся, то ничего не делаем
         if self._stopping.is_set():
             return
+        # устанавливаем флаг остановки
         self._stopping.set()
 
         await self._queue.close(executors=self._workers)
         if self._tasks:
+            # ждем пока все задачи завершатся
             await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks = []
         log_info(
-            "Executor stop: "
-            f"processed={self._stats.processed}, ok={self._stats.succeeded}, failed={self._stats.failed}"
-        )
+            "Исполнитель остановлен: "f"обарботано={self._stats.processed}, успешно={self._stats.succeeded}, с ошибкой упало={self._stats.failed}")
 
     def _select_handler(self, task: Task) -> TaskHandler:
+        # проверяем все обработчики по очереди
         for h in self._handlers:
             try:
                 if h.supports(task):
@@ -109,10 +97,12 @@ class AsyncTaskExecutor:
         async for task in self._queue:
             try:
                 await self._process_one(task, worker_id=worker_id)
+            # чтобы queue.join() не завис, статус выоплнения не важен
             finally:
                 self._queue.task_done()
 
-    async def _process_one(self, task: Task, *, worker_id: int) -> None:
+    async def _process_one(self, task: Task, worker_id: int) -> None:
+        # Обработка одной задачи
         async with self._lock:
             self._stats = ExecutorStats(
                 processed=self._stats.processed + 1,
@@ -120,7 +110,7 @@ class AsyncTaskExecutor:
                 failed=self._stats.failed,
             )
 
-        log_info(f"worker={worker_id} start task id={task.id}")
+        log_info(f"worker={worker_id} начал task id={task.id}")
 
         try:
             task.transition_to("in_progress")
@@ -135,7 +125,7 @@ class AsyncTaskExecutor:
                     failed=self._stats.failed,
                 )
 
-            log_info(f"worker={worker_id} done task id={task.id}")
+            log_info(f"worker={worker_id} завершил успешно task id={task.id}")
         except Exception as e:
             try:
                 task.transition_to("failed")
@@ -149,5 +139,5 @@ class AsyncTaskExecutor:
                     failed=self._stats.failed + 1,
                 )
 
-            log_error(f"worker={worker_id} task id={getattr(task, 'id', '?')} failed: {e}")
+            log_error(f"worker={worker_id} task id={getattr(task, 'id', '?')} упал с ошибкой: {e}")
 
