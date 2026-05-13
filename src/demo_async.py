@@ -31,7 +31,8 @@ async def run_demo(generated_count: int = 5) -> None:
 
     succ = [t for t in tasks if t.status == "completed"]
     fail = [t for t in tasks if t.status == "failed"]
-    log_info(f"demo finished: completed={len(succ)}, failed={len(fail)}")
+    log_info(f"demo завершено: обработано успешно={len(succ)}, не удалось обработать={len(fail)}")
+    print(f"demo завершено: обработано успешно={len(succ)}, не удалось обработать={len(fail)}")
 
 
 def run_demo_sync(generated_count: int = 5) -> None:

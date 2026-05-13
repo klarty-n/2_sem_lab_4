@@ -2,7 +2,7 @@ from src.logger import log_info, log_error
 from src.source import GeneratorTaskSource
 from src.handler import hendler_task_source
 from src.demonstration_test_for_main import run_tests
-from src.demo_lab4 import run_lab4_demo_sync
+from src.demo_async import run_demo_sync
 
 def main() -> None:
     """
@@ -52,7 +52,7 @@ def main() -> None:
                 except ValueError:
                     count = 5
                 print("Запуск...")
-                run_lab4_demo_sync(generated_count=count)
+                run_demo_sync(generated_count=count)
 
             elif choice == "3":
                 print("Запуск тестов...")
