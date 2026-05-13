@@ -2,6 +2,7 @@ from src.logger import log_info, log_error
 from src.source import GeneratorTaskSource
 from src.handler import hendler_task_source
 from src.demonstration_test_for_main import run_tests
+from src.demo_lab4 import run_lab4_demo_sync
 
 def main() -> None:
     """
@@ -15,8 +16,9 @@ def main() -> None:
         try:
             print("\nВыберите действие:")
             print("1 Сгенерировать задачи")
-            print("2 Запустить тесты")
-            print("3 Выйти")
+            print("2 Запустить асинхронную обработку")
+            print("3 Запустить тесты")
+            print("4 Выйти")
 
             choice = input("ヽ(♡‿♡)ノ Введите номер действия: ").strip()
 
@@ -45,10 +47,18 @@ def main() -> None:
                     continue
 
             elif choice == "2":
+                try:
+                    count = int(input("Сколько задач сгенерировать для демо?: "))
+                except ValueError:
+                    count = 5
+                print("Запуск...")
+                run_lab4_demo_sync(generated_count=count)
+
+            elif choice == "3":
                 print("Запуск тестов...")
                 run_tests()
 
-            elif choice == "3":
+            elif choice == "4":
                 msg = "\nВыход из программы (＿ ＿*) Z z z"
                 print(msg)
                 log_info(msg)

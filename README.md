@@ -64,3 +64,20 @@ python -m src.main
     └── test_queue.py                   
 ```
 
+
+# Лабораторная работа №4
+## Асинхронный исполнитель задач
+
+### Что добавлено (ЛР4)
+- `src/async_queue.py` — асинхронная очередь задач на базе `asyncio.Queue`
+- `src/async_protocols.py` — контракт обработчика `TaskHandler` через `typing.Protocol`
+- `src/async_executor.py` — исполнитель задач `AsyncTaskExecutor` (async/await, воркеры, контекстный менеджер, централизованное логирование/ошибки)
+- `src/resources.py` — пример управления ресурсом через async context manager
+- `src/handlers_async.py` — примеры расширяемых обработчиков (в т.ч. с ресурсом)
+- `tests/test_async_executor_lab4.py` — тесты для ЛР4 (без `pytest-asyncio`, через `asyncio.run`)
+
+### Как запускать тесты
+```bash
+pytest -q
+```
+

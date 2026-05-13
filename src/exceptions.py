@@ -15,3 +15,6 @@ class PayloadError(TaskValidationError):
 
 class StatusTransitionError(TaskValidationError):
     pass
+
+class NoHandlerError(RuntimeError):
+    pass
